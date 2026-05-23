@@ -27,8 +27,8 @@ class StandardTab(ctk.CTkFrame):
         self.scroll_canvas = ctk.CTkScrollableFrame(
             self, 
             fg_color="transparent",
-            scrollbar_button_color="#2B2B2B",
-            scrollbar_button_hover_color="#2B2B2B",
+            scrollbar_button_color="#0D0D11",
+            scrollbar_button_hover_color="#0D0D11",
             scrollbar_fg_color="transparent"
         )
         self.scroll_canvas.grid(row=0, column=0, sticky="nsew", padx=PAD_OUTER, pady=(PAD_OUTER, 5))
