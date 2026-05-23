@@ -130,12 +130,18 @@ System Prerequisites
 
 OS: Windows 10 or Windows 11
 
+Download the latest release
+
+If you'd rather assemble yourself:
+
 Language: Python 3.10 or higher
 
 Required Libraries:
 
-pip install customtkinter requests psutil pillow
+pip install customtkinter requests psutil pillow pyinstaller
 
+Then run
+pyinstaller --noconsole --onefile --clean --name="AFSM" --icon="app.ico" --collect-all customtkinter --add-data "core;core" --add-data "views;views" main.py
 
 
 Running the Manager
@@ -144,7 +150,7 @@ Clone this repository locally, navigate to the directory, and run the following 
 
 python main.py
 
-
+Must run as admin for CPU temp to show!
 
 ⚖️ License
 
