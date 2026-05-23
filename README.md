@@ -86,28 +86,43 @@ GUID Relocation: Translates local Single-player or Co-Op .sav save files over to
 
 AFSM utilizes a structured MVC division of components:
 
-├── main.py                     # Main GUI setup, tab management, and window lifecycle
-├── configs/                    # Storage folder for user preferences, player logs, and configuration data
-├── core/                       # Operational modules and background thread loops
-│   ├── backup_manager.py       # ZIP compression, deletion, and save state restorations
-│   ├── config_manager.py       # Configuration loader/writer for JSON-based preferences
-│   ├── hardware_monitor.py     # System resource checks, network delta speed, and temperature metrics
-│   ├── metrics_controller.py   # Background HTTP loops querying players list and metrics endpoints
-│   ├── scheduler.py            # Timer countdown loops, warning intervals, and restart logic
-│   ├── server_controller.py    # Process startups, taskkill execution, and API actions
-│   └── ui_components.py        # Central CTK UI classes, Scrollable frames, and custom Cards
-└── views/                      # Custom Tkinter layout structures and widget assemblies
-    ├── backups_view.py         # File restoration grid and custom directories mapping
-    ├── converter_view.py       # Save file translation configuration elements
-    ├── dashboard_view.py       # Vitals gauges, console log stream, and steamcmd execution
-    ├── header_view.py          # Logo panel, path config, power controls, and optional support link
-    ├── map_view.py             # Optimized map canvas, zoom, and player plotting
-    ├── metrics_view.py         # Detailed engine performance meters and logs
-    ├── mods_view.py            # Mod installer, smart ZIP analyzer, exporter, and multi-selection
-    ├── player_view.py          # Online/Offline rosters, kick, ban, and admin logs
-    ├── scheduler_view.py       # Dynamic restart timings and warning triggers
-    └── settings_view.py        # Integrated PalWorldSettings.ini editor
+main.py - Main GUI setup, tab configuration, and window lifecycle.
 
+configs/ - Storage folder for user preferences, player logs, and configuration data.
+
+core/backup_manager.py - ZIP compression, deletion, and save state restorations.
+
+core/config_manager.py - Configuration loader/writer for JSON-based preferences.
+
+core/hardware_monitor.py - System resource checks, network delta speed, and temperature metrics.
+
+core/metrics_controller.py - Background HTTP loops querying players list and metrics endpoints.
+
+core/scheduler.py - Timer countdown loops, warning intervals, and restart logic.
+
+core/server_controller.py - Process startups, taskkill execution, and API actions.
+
+core/ui_components.py - Central CTK UI classes, Scrollable frames, and custom Cards.
+
+views/backups_view.py - File restoration grid and custom directories mapping.
+
+views/converter_view.py - Save file translation configuration elements.
+
+views/dashboard_view.py - Vitals gauges, console log stream, and SteamCMD execution.
+
+views/header_view.py - Logo panel, path config, power controls, and optional support link.
+
+views/map_view.py - Optimized map canvas, zoom, and player plotting.
+
+views/metrics_view.py - Detailed engine performance meters and logs.
+
+views/mods_view.py - Mod installer, smart ZIP analyzer, exporter, and multi-selection checkboxes.
+
+views/player_view.py - Online/Offline rosters, kick, ban, and admin logs.
+
+views/scheduler_view.py - Dynamic restart timings and warning triggers.
+
+views/settings_view.py - Integrated PalWorldSettings.ini editor.
 
 🚀 Getting Started
 
