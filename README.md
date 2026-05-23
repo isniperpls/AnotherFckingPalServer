@@ -122,6 +122,7 @@ Required Libraries:
 pip install customtkinter requests psutil pillow
 
 
+
 Running the Manager
 
 Clone this repository locally, navigate to the directory, and run the following command:
@@ -129,6 +130,7 @@ Clone this repository locally, navigate to the directory, and run the following 
 python main.py
 
 
+
 ⚖️ License
 
-This project is licensed under the permissive MIT License. It grants full rights to copy, modify, distribute, and sell the software under the condition that the copyright notice and liability disclaimer are included. See the LICENSE file for details.
+This project is licensed under the permissive MIT License. It grants full rights to copy, modify, distribute, and sell the software under the condition that the copyright notice and liability disclaimer are included. See the LICENSE file for details
