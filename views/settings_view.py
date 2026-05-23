@@ -147,7 +147,7 @@ def load_settings_data(app):
 
     if not content or "OptionSettings=" not in content:
         content = DEFAULT_SETTINGS_TEMPLATE
-        app.log("Local INI files missing. Loaded default template from internal settings_data.py.")
+        app.log("Loaded default template.")
 
     settings_dict = {}
     if content:
