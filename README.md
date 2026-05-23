@@ -30,6 +30,8 @@ Administrator privileges are recommended for network monitoring and proper proce
 
 Setup
 
+Recommend downloading the exe and placing it in it's own folder. It will generate a configs folder for player history and will also auto download steamcmd to the root of where the exe is if you utilize the intall/update button on the dashboard.
+
 Server Path: Upon launching for the first time, click "SET SERVER PATH" in the header to point the manager to your Palworld server directory.
 
 Deployment: Use the "INSTALL / UPDATE" button on the Dashboard to download and configure SteamCMD in exe root and the Palworld Dedicated Server (App ID 2394010) into the selected server path.
@@ -42,7 +44,7 @@ Usage
 
 API Configuration: To use Player Management and Metrics, set RESTAPIEnabled to True in the Server Settings tab and define an AdminPassword.
 
-Map Tracking: Place map.jpg or map.png in the application root directory (where the executable or main script is located) to enable the live map overlay.
+Map Tracking: Place map.jpg or map.png (included in this repository, a 4K upscaled map) in the application root directory (where the executable or main script is located) to enable the live map overlay.
 
 Backups: Enable automated backups in the "Backups Manager" tab to save your world state at specific intervals.
 
