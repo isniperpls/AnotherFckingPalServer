@@ -12,15 +12,23 @@ import zipfile
 import subprocess
 import threading
 import sys
+import ssl
+import shutil
+import os
 from pathlib import Path
 from tkinter import messagebox, filedialog
+
+try:
+    ssl._create_default_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
 
 from core.scheduler import RestartScheduler
 from core.backup_manager import BackupManager
 from core.metrics_controller import start_background_loops, is_server_running_on_system
 from core.server_controller import ServerController
 from core.config_manager import load_manager_config, save_manager_config
-from core.ui_components import COLOR_DARK_BG, COLOR_NEON_BLUE, COLOR_NEON_PINK
+from core.ui_components import COLOR_DARK_BG, COLOR_CARD_BG, COLOR_NEON_BLUE, COLOR_NEON_PINK
 
 from views.header_view import setup_header_bar
 from views.dashboard_view import setup_dashboard_tab
@@ -29,7 +37,6 @@ from views.settings_view import setup_settings_tab, load_settings_data, save_set
 from views.player_view import setup_player_tab, update_player_management_list
 from views.backups_view import setup_backups_tab, update_backups_list_ui
 from views.map_view import PalworldMapTab
-from views.converter_view import setup_converter_tab
 from views.metrics_view import setup_metrics_tab, update_metrics_ui, set_metrics_offline_ui
 from views.mods_view import setup_mods_tab, update_mods_tab_ui
 
@@ -38,16 +45,12 @@ class PalManagerPro(ctk.CTk):
         super().__init__()
         self.title("Another Fcking Server Manager")
         
-        # Configure and center 1600x900 window geometry relative to the screen dimensions
         width = 1600
         height = 900
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
-        
-        # Calculate starting coordinates
         start_x = int((screen_width / 2) - (width / 2))
         start_y = int((screen_height / 2) - (height / 2))
-        
         self.geometry(f"{width}x{height}+{start_x}+{start_y}")
         
         ctk.set_appearance_mode("dark")
@@ -55,6 +58,7 @@ class PalManagerPro(ctk.CTk):
         
         self.config_file = Path("configs/manager_config.json")
         self.config_data = load_manager_config()
+        
         path_str = self.config_data.get("server_path", "")
         self.base_dir = Path(path_str) if path_str else None
         
@@ -91,15 +95,27 @@ class PalManagerPro(ctk.CTk):
     def _setup_ui(self):
         setup_header_bar(self)
 
-        self.tabs = ctk.CTkTabview(
+        self.tabs_card_container = ctk.CTkFrame(
             self,
+            fg_color=COLOR_CARD_BG,
+            border_color="#1F2937",
+            border_width=1,
+            corner_radius=12
+        )
+        self.tabs_card_container.pack(side="bottom", fill="both", expand=True, padx=25, pady=(15, 25))
+
+        self.tabs = ctk.CTkTabview(
+            self.tabs_card_container,
             segmented_button_selected_color=COLOR_NEON_BLUE,
+            segmented_button_selected_hover_color="#00B4CC",
             segmented_button_unselected_color="#101014",
+            segmented_button_unselected_hover_color="#1F2937",
             text_color="#E2E8F0",
+            fg_color="transparent",
             command=self._on_tab_change
         )
-        self.tabs.pack(side="bottom", fill="both", expand=True, padx=25, pady=(15, 25))
-        
+        self.tabs.pack(fill="both", expand=True, padx=12, pady=12)
+
         setup_dashboard_tab(self, self.tabs.add("Dashboard"))
         setup_player_tab(self, self.tabs.add("Player Management"))
         self.map_controller = PalworldMapTab(self.tabs.add("Live Map"))
@@ -108,10 +124,8 @@ class PalManagerPro(ctk.CTk):
         setup_metrics_tab(self, self.tabs.add("Server Metrics"))
         setup_mods_tab(self, self.tabs.add("Mods Manager"))
         setup_settings_tab(self, self.tabs.add("Server Settings"))
-        setup_converter_tab(self, self.tabs.add("Converter"))
 
     def _on_tab_change(self):
-        """Callback triggered when the user switches tabs."""
         selected_tab = self.tabs.get()
         if selected_tab == "Backups Manager":
             update_backups_list_ui(self)
@@ -177,70 +191,82 @@ class PalManagerPro(ctk.CTk):
             self.save_manager_configs()
             self.load_settings()
 
-    def toggle_server(self): 
-        ServerController.toggle_server(self)
-        
-    def start_server_process(self): 
-        ServerController.start_server_process(self)
-        
-    def shutdown_server_process(self): 
-        ServerController.shutdown_server_process(self)
+    def toggle_server(self): ServerController.toggle_server(self)
+    def start_server_process(self): ServerController.start_server_process(self)
+    def shutdown_server_process(self): ServerController.shutdown_server_process(self)
 
     def load_settings(self):
         load_settings_data(self)
         update_backups_list_ui(self)
         self.update_backup_ui_states()
 
-    def save_settings(self): 
-        save_settings_data(self)
+    def save_settings(self): save_settings_data(self)
 
     def trigger_steamcmd_installation(self):
         if is_server_running_on_system(self):
-            messagebox.showerror("Error", "Stop server first!")
+            messagebox.showerror("Error", "Stop server first!", parent=self)
             return
         if not self.base_dir:
-            messagebox.showwarning("Error", "Set path first!")
+            messagebox.showwarning("Error", "Set path first!", parent=self)
             return
-        if messagebox.askyesno("Confirm", "Download/Update server files?"):
-            self.btn_install_server.configure(state="disabled", text="UPDATING...")
+        if messagebox.askyesno("Confirm", "Download/Update server files?", parent=self):
+            if hasattr(self, "btn_install_server"):
+                self.btn_install_server.configure(state="disabled", text="UPDATING...")
             threading.Thread(target=self._run_steamcmd_installation_worker, daemon=True).start()
 
     def _run_steamcmd_installation_worker(self):
         try:
-            app_root = Path(sys.argv[0]).parent.absolute()
+            if getattr(sys, 'frozen', False):
+                app_root = Path(sys.executable).parent.absolute()
+            else:
+                app_root = Path(__file__).parent.absolute()
+
             steamcmd_root = app_root / "steamcmd"
             steamcmd_root.mkdir(parents=True, exist_ok=True)
             steamcmd_exe = steamcmd_root / "steamcmd.exe"
             
             if not steamcmd_exe.exists():
-                urllib.request.urlretrieve("https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip", str(steamcmd_root / "steamcmd.zip"))
+                self.after(0, lambda: self.log("SteamCMD not found. Downloading..."))
+                req = urllib.request.Request("http://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip", headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req) as response:
+                    with open(steamcmd_root / "steamcmd.zip", 'wb') as out_file:
+                        shutil.copyfileobj(response, out_file)
                 with zipfile.ZipFile(steamcmd_root / "steamcmd.zip", 'r') as zf:
                     zf.extractall(str(steamcmd_root))
 
-            cmd = [str(steamcmd_exe), "+force_install_dir", str(self.base_dir), "+login", "anonymous", "+app_update", "2394010", "validate", "+quit"]
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
-            
+            self.after(0, lambda: self.log("Stage 1: Warming up SteamCMD metadata..."))
+            p1 = subprocess.Popen([str(steamcmd_exe), "+login", "anonymous", "+app_info_update", "1", "+quit"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, creationflags=0x08000000)
+            p1.stdin.close()
+            p1.wait()
+
+            self.after(0, lambda: self.log("Stage 2: Initiating Palworld Dedicated Server download..."))
+            cmd = [str(steamcmd_exe), "+@sSteamCmdForcePlatformType", "windows", "+force_install_dir", str(self.base_dir), "+login", "anonymous", "+app_update", "2394010", "validate", "+quit"]
+            p2 = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, creationflags=0x08000000)
+            p2.stdin.close()
             while True:
-                line = process.stdout.readline()
+                line = p2.stdout.readline()
                 if not line: break
                 self.after(0, lambda l=line.strip(): self.log(f"[SteamCMD] {l}"))
-            process.wait()
+            p2.wait()
+            
             self.after(0, self.load_settings)
+            self.after(0, lambda: self.log("Server installation sequence completed successfully."))
         except Exception as e:
             self.after(0, lambda: self.log(f"Installer Error: {e}"))
         finally:
-            self.after(0, lambda: self.btn_install_server.configure(state="normal", text="INSTALL / UPDATE"))
+            if hasattr(self, "btn_install_server"):
+                self.after(0, lambda: self.btn_install_server.configure(state="normal", text="INSTALL / UPDATE"))
 
-    def update_hardware_ui(self, cpu, temp, ram, disk, p_ram, net=None):
+    def update_hardware_ui(self, cpu, ram, disk, p_ram, net=None):
         if hasattr(self, "lbl_cpu_val"):
-            self.lbl_cpu_val.configure(text=f"CPU: {cpu}% ({temp})")
+            self.lbl_cpu_val.configure(text=f"CPU Usage: {cpu}%")
             self.bar_cpu.set(cpu / 100.0)
             self.lbl_ram_val.configure(text=f"RAM: {ram['used_gb']}G / {ram['total_gb']}G")
             self.bar_ram.set(ram['percent'] / 100.0)
             self.lbl_disk_val.configure(text=f"Disk: {disk['used_gb']}G / {disk['total_gb']}G")
             self.bar_disk.set(disk['percent'] / 100.0)
             if net and hasattr(self, "lbl_net_val"):
-                self.lbl_net_val.configure(text=f"Up: {net['sent_speed_kb']} KB/s | Down: {net['recv_speed_kb']} KB/s")
+                self.lbl_net_val.configure(text=f"Network: Up: {net['sent_speed_kb']} KB/s | Down: {net['recv_speed_kb']} KB/s")
 
     def update_player_ui(self, players, count, max_players):
         if hasattr(self, "lbl_player_count"):
@@ -256,13 +282,8 @@ class PalManagerPro(ctk.CTk):
         if hasattr(self, "map_controller"):
             self.map_controller.update_player_positions([])
 
-    def update_detailed_metrics(self, data):
-        """Standard routing to update detailed tab metrics."""
-        update_metrics_ui(self, data)
-
-    def set_detailed_metrics_error(self, error_msg):
-        """Routing to update detailed metrics status on error."""
-        set_metrics_offline_ui(self, error_msg)
+    def update_detailed_metrics(self, data): update_metrics_ui(self, data)
+    def set_detailed_metrics_error(self, error_msg): set_metrics_offline_ui(self, error_msg)
 
     def update_server_status_ui(self, is_running):
         if hasattr(self, "btn_toggle"):
@@ -274,30 +295,20 @@ class PalManagerPro(ctk.CTk):
                 if hasattr(self, "lbl_quick_status_val"): self.lbl_quick_status_val.configure(text="OFFLINE", text_color=COLOR_NEON_PINK)
 
     def update_scheduler_label(self, text, color):
-        """Cleanly formats the scheduler string to prevent duplicate prefixes."""
-        # Strip any redundant prefixes the core scheduler might send
         clean_text = text.replace("Next Restart in: ", "").replace("Next Restart: ", "").strip()
-        
-        # 1. Update the large label in the Scheduler Tab
         if hasattr(self, "lbl_restart_countdown"):
             if clean_text.lower() in ["disabled", "none", "cancelled"]:
                 self.lbl_restart_countdown.configure(text="No Active Schedule", text_color=color)
             else:
                 self.lbl_restart_countdown.configure(text=f"Next Restart in: {clean_text}", text_color=color)
-
-        # 2. Update the smaller label in the Dashboard Tab
         if hasattr(self, "lbl_dashboard_restart_countdown"):
             self.lbl_dashboard_restart_countdown.configure(text=f"Next Restart in: {clean_text}", text_color=color)
 
     def update_scheduler_progress(self, value):
-        if hasattr(self, "bar_restart_progress"): 
-            self.bar_restart_progress.set(value)
+        if hasattr(self, "bar_restart_progress"): self.bar_restart_progress.set(value)
 
-    def _get_api_config(self): 
-        return ServerController.get_api_config(self)
-        
-    def send_announcement(self): 
-        ServerController.send_announcement(self)
+    def _get_api_config(self): return ServerController.get_api_config(self)
+    def send_announcement(self): ServerController.send_announcement(self)
 
     def kick_selected_player(self):
         if not self.selected_player_uid: return
@@ -344,7 +355,6 @@ class PalManagerPro(ctk.CTk):
             else: self.cb_auto_backup.deselect()
             self.ent_backup_interval.delete(0, "end")
             self.ent_backup_interval.insert(0, str(self.backup_interval_mins))
-            
             if hasattr(self, "lbl_backup_path_val"):
                 self.lbl_backup_path_val.configure(text=f"Current Path: {str(self.backup_dir) if self.backup_dir else 'Default (Saved_Backups)'}")
 
@@ -352,16 +362,13 @@ class PalManagerPro(ctk.CTk):
         if not self.base_dir: 
             messagebox.showwarning("Warning", "Server path not set!")
             return
-            
         if hasattr(self, "btn_trigger_backup"):
             self.btn_trigger_backup.configure(state="disabled", text="CREATING SNAPSHOT...")
-            
         def _backup_worker():
             BackupManager.create_backup(self.base_dir, self.log, str(self.backup_dir) if self.backup_dir else None, self.get_server_name())
             self.after(0, lambda: update_backups_list_ui(self))
             if hasattr(self, "btn_trigger_backup"):
                 self.after(0, lambda: self.btn_trigger_backup.configure(state="normal", text="CREATE INSTANT SNAPSHOT"))
-
         threading.Thread(target=_backup_worker, daemon=True).start()
 
     def trigger_backup_delete(self, path):
@@ -395,8 +402,7 @@ class PalManagerPro(ctk.CTk):
             self.scheduler.start_scheduler(total, warns, bool(self.cb_repeat_restart.get()))
         except: pass
 
-    def cancel_restart(self): 
-        self.scheduler.cancel_scheduler()
+    def cancel_restart(self): self.scheduler.cancel_scheduler()
 
     def _validate_numeric(self, val):
         if val in ("", "-", "+", ".", "-.", "+."): return True
